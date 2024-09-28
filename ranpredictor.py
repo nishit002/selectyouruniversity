@@ -117,7 +117,7 @@ def main():
     add_custom_styles()  # Add custom styles
 
     # Display the logo at the top of the app (using a direct Google Drive image URL)
-    st.image("https://drive.google.com/uc?id=1o_vaTJmpGw-5H_j0mmUAJ6GQdB9UBeNv", width=200)  # Google Drive URL for logo
+    st.image("https://imgur.com/pctn0tc", width=200)  # Google Drive URL for logo
 
     st.title('College Predictor')
 
