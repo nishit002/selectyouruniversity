@@ -33,15 +33,19 @@ def preprocess_dataframe(df):
     
     return df
 
-# Function to calculate the chances of admission
+# Function to calculate the chances of admission (with more realistic values)
 def calculate_chances(user_rank, opening_rank, closing_rank):
     if user_rank <= opening_rank:
-        return 100  # 100% chance if the rank is better than the opening rank
+        return 90  # Cap the maximum chance at 90%
     elif user_rank > closing_rank:
-        return 0  # 0% chance if the rank is worse than the closing rank
+        return 10  # Set a minimum realistic chance at 10%
     else:
         # Calculate chance as a percentage between the opening and closing ranks
-        return int(100 * (closing_rank - user_rank) / (closing_rank - opening_rank))
+        return int(10 + 80 * (closing_rank - user_rank) / (closing_rank - opening_rank))
+
+# Function to calculate deviation from last year's cutoff
+def calculate_deviation(user_rank, closing_rank):
+    return user_rank - closing_rank  # Positive value means the user is above last year's cutoff
 
 # Function to filter courses based on user selection
 def filter_courses(df, course_type):
@@ -58,14 +62,21 @@ def classify_colleges(df, user_rank, quota, seat_type):
     df['Opening Rank'] = pd.to_numeric(df['Opening Rank'], errors='coerce')
     df['Closing Rank'] = pd.to_numeric(df['Closing Rank'], errors='coerce')
     
-    # Create a copy of the DataFrame to add the "Chance" column
+    # Create a copy of the DataFrame to add the "Chance" and "Deviation" columns
     df = df.copy()
     
-    # Calculate chances only for valid numeric values
+    # Calculate chances and deviation from last year's cutoff
     df['Chance'] = df.apply(
         lambda row: calculate_chances(user_rank, row['Opening Rank'], row['Closing Rank']) 
         if pd.notnull(row['Opening Rank']) and pd.notnull(row['Closing Rank']) 
         else 0, 
+        axis=1
+    )
+    
+    df['Deviation'] = df.apply(
+        lambda row: calculate_deviation(user_rank, row['Closing Rank'])
+        if pd.notnull(row['Closing Rank'])
+        else 0,
         axis=1
     )
     
@@ -107,9 +118,8 @@ def add_custom_styles():
 def main():
     add_custom_styles()  # Add custom styles
 
-    # Display the logo at the top of the app
-    st.image("https://drive.google.com/uc?id=1o_vaTJmpGw-5H_j0mmUAJ6GQdB9UBeNv", width=200)
-  # Local file logo
+    # Display the logo at the top of the app (using a direct Google Drive image URL)
+    st.image("https://drive.usercontent.google.com/download?id=1o_vaTJmpGw-5H_j0mmUAJ6GQdB9UBeNv&authuser=0", width=200)  # Google Drive URL for logo
 
     st.title('College Predictor')
 
@@ -146,21 +156,24 @@ def main():
         st.write("### Safe Colleges")
         if not safe.empty:
             safe['Chance (%)'] = safe['Chance']
-            st.dataframe(safe[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)']])
+            safe['Deviation from Last Year Cutoff'] = safe['Deviation']
+            st.dataframe(safe[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)', 'Deviation from Last Year Cutoff']])
         else:
             st.write("No Safe Colleges found based on your rank.")
 
         st.write("### Moderate Colleges")
         if not moderate.empty:
             moderate['Chance (%)'] = moderate['Chance']
-            st.dataframe(moderate[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)']])
+            moderate['Deviation from Last Year Cutoff'] = moderate['Deviation']
+            st.dataframe(moderate[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)', 'Deviation from Last Year Cutoff']])
         else:
             st.write("No Moderate Colleges found based on your rank.")
 
         st.write("### Ambitious Colleges")
         if not ambitious.empty:
             ambitious['Chance (%)'] = ambitious['Chance']
-            st.dataframe(ambitious[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)']])
+            ambitious['Deviation from Last Year Cutoff'] = ambitious['Deviation']
+            st.dataframe(ambitious[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)', 'Deviation from Last Year Cutoff']])
         else:
             st.write("No Ambitious Colleges found based on your rank.")
 
