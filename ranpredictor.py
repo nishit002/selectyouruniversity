@@ -9,10 +9,15 @@ def load_data(file_path):
     df = preprocess_dataframe(df)
     return df
 
-# Preprocess the data (remove unnecessary columns, clean up)
+# Preprocess the data (remove unnecessary columns, clean up, and convert ranks to numeric)
 def preprocess_dataframe(df):
     df.dropna(axis=1, how='all', inplace=True)  # Drop columns with all NaNs
     df = df.loc[:, ~df.columns.str.contains('^Unnamed')]  # Remove unnamed columns
+    
+    # Convert Opening Rank and Closing Rank columns to numeric, forcing errors to NaN
+    df['Opening Rank'] = pd.to_numeric(df['Opening Rank'], errors='coerce')
+    df['Closing Rank'] = pd.to_numeric(df['Closing Rank'], errors='coerce')
+    
     df.rename(columns={
         'Institute': 'College Name',
         'Academic Program Name': 'Course Name',
@@ -26,6 +31,7 @@ def preprocess_dataframe(df):
 
 # Algorithm to classify colleges into 'Ambitious', 'Moderate', and 'Safe'
 def classify_colleges(df, user_rank, quota, seat_type):
+    # Ensure user_rank is numeric and filter DataFrame accordingly
     ambitious = df[(df['Closing Rank'] < user_rank) & (df['Quota'] == quota) & (df['Seat Type'] == seat_type)]
     moderate = df[(df['Opening Rank'] <= user_rank) & (df['Closing Rank'] >= user_rank) & (df['Quota'] == quota) & (df['Seat Type'] == seat_type)]
     safe = df[(df['Opening Rank'] > user_rank) & (df['Quota'] == quota) & (df['Seat Type'] == seat_type)]
