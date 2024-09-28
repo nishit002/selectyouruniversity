@@ -49,10 +49,8 @@ def calculate_deviation(user_rank, closing_rank):
 
 # Function to filter courses based on user selection
 def filter_courses(df, course_type):
-    if course_type == "B.Plan (Planning-related)":
-        return df[df['Course Name'].str.contains('planning', case=False, na=False)]
-    elif course_type == "B.Arch (Architecture-related)":
-        return df[df['Course Name'].str.contains('architecture|design', case=False, na=False)]
+    if course_type == "B.Plan / B.Arch":
+        return df[df['Course Name'].str.contains('planning|architecture|design', case=False, na=False)]
     else:  # B.Tech for all other courses
         return df[~df['Course Name'].str.contains('planning|architecture|design', case=False, na=False)]
 
@@ -119,7 +117,7 @@ def main():
     add_custom_styles()  # Add custom styles
 
     # Display the logo at the top of the app (using a direct Google Drive image URL)
-    st.image("https://drive.usercontent.google.com/download?id=1o_vaTJmpGw-5H_j0mmUAJ6GQdB9UBeNv&authuser=0", width=200)  # Google Drive URL for logo
+    st.image("https://drive.google.com/uc?id=1o_vaTJmpGw-5H_j0mmUAJ6GQdB9UBeNv", width=200)  # Google Drive URL for logo
 
     st.title('College Predictor')
 
@@ -135,10 +133,12 @@ def main():
 
     df = load_data(file_path)
 
-    # User inputs for quota, seat type, and course type
+    # Radio button for course type selection with B.Tech as the default
+    course_type = st.radio('Select Course Type:', ['B.Tech', 'B.Plan / B.Arch'], index=0)
+
+    # User inputs for quota and seat type
     quota = st.selectbox('Select your Quota:', df['Quota'].unique())
     seat_type = st.selectbox('Select your Seat Type:', df['Seat Type'].unique())
-    course_type = st.selectbox('Select Course Type:', ['B.Plan (Planning-related)', 'B.Arch (Architecture-related)', 'B.Tech (Engineering-related)'])
 
     # Filter courses based on user selection
     df = filter_courses(df, course_type)
