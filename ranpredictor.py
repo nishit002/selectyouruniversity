@@ -119,8 +119,23 @@ def main():
     st.image("https://i.imgur.com/pctn0tc.png", width=200)  # Correct Imgur URL for the logo
     st.title('JEE Main College Predictor 2024')
 
-    # User inputs for the prediction
-    user_rank = st.number_input('Enter your Rank (required):', min_value=1, step=1)
+    # Lead form to collect user data
+    with st.form("lead_form"):
+        st.write("### Please fill out your information:")
+        name = st.text_input("Name", value="")
+        email = st.text_input("Email", value="")
+        phone = st.text_input("Phone Number", value="")
+        city = st.text_input("City", value="")
+        submitted = st.form_submit_button("Submit")
+        
+        if submitted:
+            if not name or not email or not phone or not city:
+                st.warning("Please fill out all fields.")
+            else:
+                st.success(f"Thanks {name}, your details have been submitted!")
+    
+    # User inputs for the prediction (rank field empty initially)
+    user_rank = st.number_input('Enter your Rank (required):', min_value=1, step=1, format="%d", key="rank", value=None)
 
     # Load the data from both years
     df = load_data()
@@ -165,7 +180,7 @@ def main():
             ambitious['Deviation from Last Year Cutoff'] = ambitious['Deviation']
             st.dataframe(ambitious[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)', 'Deviation from Last Year Cutoff']])
         else:
-            st.write("No Ambitious Colleges found based on your rank.")
+            st.write("No Ambitious Collegesfound based on your rank.")
 
         # Combine results into a DataFrame for downloading
         result_df = pd.concat([
