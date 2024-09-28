@@ -1,11 +1,20 @@
 import streamlit as st
 import pandas as pd
+from io import BytesIO
 from pathlib import Path
+
+# Set page config for title
+st.set_page_config(page_title="JEE Main College Predictor 2024")
 
 # Function to load and process the Excel data
 @st.cache
-def load_data(file_path):
-    df = pd.read_excel(file_path)
+def load_data():
+    # Load data from both years
+    df_2023 = pd.read_excel(Path(__file__).parent / 'JOSSA 2023.xlsx')
+    df_2024 = pd.read_excel(Path(__file__).parent / 'JosAA file final 2024.xlsx')
+    
+    # Combine both years' data
+    df = pd.concat([df_2023, df_2024], ignore_index=True)
     df = preprocess_dataframe(df)
     return df
 
@@ -85,53 +94,43 @@ def classify_colleges(df, user_rank, quota, seat_type):
     
     return ambitious, moderate, safe
 
-# Function to apply custom styles
-def add_custom_styles():
-    st.markdown(
-        """
-        <style>
-        /* Custom CSS for background, buttons, and headers */
-        .stButton button {
-            background-color: #E91E63;  /* Pink color */
-            color: white;
-        }
-        .stButton button:hover {
-            background-color: #c2185b;  /* Darker pink on hover */
-        }
-        .stApp {
-            background-color: #f5f5f5;  /* Light gray background */
-        }
-        h1, h2, h3, h4 {
-            color: #283593;  /* Navy blue */
-        }
-        .css-1q8dd3e {
-            color: #283593; /* Override for subheaders */
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+# Function to simulate a popup to collect additional information
+def show_user_info_form():
+    with st.form("User Information"):
+        st.write("### Please provide additional information:")
+        name = st.text_input("Name")
+        email = st.text_input("Email")
+        phone = st.text_input("Phone Number")
+        city = st.text_input("Current City")
+        gender = st.selectbox("Gender", ["Male", "Female", "Other"])
+        
+        user_type = st.radio("Are you a student or a counsellor?", ["Student", "Counsellor"])
+        
+        password = None
+        if user_type == "Counsellor":
+            password = st.text_input("Enter Password", type="password")
+        
+        submitted = st.form_submit_button("Submit")
+        
+        # Validate the password if counsellor
+        if submitted:
+            if user_type == "Counsellor" and password != "syu123":
+                st.error("Incorrect password for counsellor!")
+            else:
+                st.success("Information submitted successfully!")
+                return True, {"name": name, "email": email, "phone": phone, "city": city, "gender": gender, "user_type": user_type}
+    
+    return False, None
 
 # Main Streamlit app
 def main():
-    add_custom_styles()  # Add custom styles
+    st.title('JEE Main College Predictor 2024')
 
-    # Display the logo at the top of the app (using the correct Imgur direct image URL)
-    st.image("https://i.imgur.com/pctn0tc.png", width=200)  # Correct Imgur URL
+    # User inputs for the prediction
+    user_rank = st.number_input('Enter your Rank (required):', min_value=1, step=1)
 
-    st.title('College Predictor')
-
-    # User inputs
-    year = st.selectbox('Select Year:', [2023, 2024])
-    user_rank = st.number_input('Enter your Rank:', min_value=0, step=1)
-
-    # Load the correct data file based on the selected year
-    if year == 2023:
-        file_path = Path(__file__).parent / 'JOSSA 2023.xlsx'
-    else:
-        file_path = Path(__file__).parent / 'JosAA file final 2024.xlsx'
-
-    df = load_data(file_path)
+    # Load the data from both years
+    df = load_data()
 
     # Radio button for course type selection with B.Tech as the default
     course_type = st.radio('Select Course Type:', ['B.Tech', 'B.Plan / B.Arch'], index=0)
@@ -145,37 +144,37 @@ def main():
 
     # Predict button
     if st.button('Predict Colleges'):
-        ambitious, moderate, safe = classify_colleges(df, user_rank, quota, seat_type)
+        # Show the additional information form (popup simulation)
+        form_submitted, user_info = show_user_info_form()
 
-        # Order by Opening Rank (lower cutoff is better)
-        ambitious = ambitious.sort_values(by='Opening Rank')
-        moderate = moderate.sort_values(by='Opening Rank')
-        safe = safe.sort_values(by='Opening Rank')
+        if form_submitted:
+            # Once the form is submitted, show prediction results
+            ambitious, moderate, safe = classify_colleges(df, user_rank, quota, seat_type)
 
-        # Display results for Safe, Moderate, and Ambitious categories
-        st.write("### Safe Colleges")
-        if not safe.empty:
-            safe['Chance (%)'] = safe['Chance']
-            safe['Deviation from Last Year Cutoff'] = safe['Deviation']
-            st.dataframe(safe[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)', 'Deviation from Last Year Cutoff']])
-        else:
-            st.write("No Safe Colleges found based on your rank.")
+            # Display results for Safe, Moderate, and Ambitious categories
+            st.write("### Safe Colleges")
+            if not safe.empty:
+                safe['Chance (%)'] = safe['Chance']
+                safe['Deviation from Last Year Cutoff'] = safe['Deviation']
+                st.dataframe(safe[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)', 'Deviation from Last Year Cutoff']])
+            else:
+                st.write("No Safe Colleges found based on your rank.")
 
-        st.write("### Moderate Colleges")
-        if not moderate.empty:
-            moderate['Chance (%)'] = moderate['Chance']
-            moderate['Deviation from Last Year Cutoff'] = moderate['Deviation']
-            st.dataframe(moderate[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)', 'Deviation from Last Year Cutoff']])
-        else:
-            st.write("No Moderate Colleges found based on your rank.")
+            st.write("### Moderate Colleges")
+            if not moderate.empty:
+                moderate['Chance (%)'] = moderate['Chance']
+                moderate['Deviation from Last Year Cutoff'] = moderate['Deviation']
+                st.dataframe(moderate[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)', 'Deviation from Last Year Cutoff']])
+            else:
+                st.write("No Moderate Colleges found based on your rank.")
 
-        st.write("### Ambitious Colleges")
-        if not ambitious.empty:
-            ambitious['Chance (%)'] = ambitious['Chance']
-            ambitious['Deviation from Last Year Cutoff'] = ambitious['Deviation']
-            st.dataframe(ambitious[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)', 'Deviation from Last Year Cutoff']])
-        else:
-            st.write("No Ambitious Colleges found based on your rank.")
+            st.write("### Ambitious Colleges")
+            if not ambitious.empty:
+                ambitious['Chance (%)'] = ambitious['Chance']
+                ambitious['Deviation from Last Year Cutoff'] = ambitious['Deviation']
+                st.dataframe(ambitious[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)', 'Deviation from Last Year Cutoff']])
+            else:
+                st.write("No Ambitious Colleges found based on your rank.")
 
 if __name__ == '__main__':
     main()
