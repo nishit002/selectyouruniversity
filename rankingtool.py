@@ -1,112 +1,134 @@
 import streamlit as st
 import pandas as pd
-from serpapi import GoogleSearch
-from urllib.parse import urlparse
+import plotly.express as px
+from io import BytesIO
+from docx import Document
+from docx.shared import Inches
 
-# Function to get the base domain from a URL (to avoid matching issues due to query params)
-def get_base_domain(url):
-    if not url.startswith("http"):  # Handle cases where 'http' or 'https' is missing
-        url = "http://" + url  # Add a default scheme to ensure proper parsing
-    parsed_url = urlparse(url)
-    # Extract base domain, remove "www." if it exists
-    domain = parsed_url.netloc.replace('www.', '')
-    return domain
+# Function to merge the two dataframes based on common key columns and replace suffixes with actual year values
+def merge_dataframes(df1, df2, key_columns, year1, year2):
+    merged_df = pd.merge(df1, df2, on=key_columns, suffixes=(f'_{year1}', f'_{year2}'))
+    return merged_df
 
-# Function to get SERP rank using SerpAPI directly from JSON response
-def get_serp_rank_serpapi(keyword, target_websites, api_key):
-    params = {
-        "q": keyword,
-        "num": 100,  # Get up to 100 results
-        "device": "mobile",  # Use mobile search
-        "gl": "in",  # Set location to India
-        "hl": "en",  # Set language to English
-        "uule": "w+CAIQICINV1JUwzBQbVlJMVyCF9ZYk9MQkFWTnA=",  # Approximate location for Gurgaon
-        "api_key": api_key,
-    }
+# Function to standardize the dataframe column names and remove unnecessary columns
+def preprocess_dataframe(df):
+    # Remove unwanted columns (e.g., Unnamed columns)
+    df.dropna(axis=1, how='all', inplace=True)
+    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+    
+    df.rename(columns={
+        'Institute': 'College Name',
+        'Academic Program Name': 'Course Name',
+        'Quota': 'Quota',
+        'Seat Type': 'Seat Type',
+        'Gender': 'Gender',
+        'Opening Rank': 'Opening Rank',
+        'Closing Rank': 'Closing Rank'
+    }, inplace=True)
+    return df
 
-    search = GoogleSearch(params)
-    results = search.get_dict()
+# Function to create a Word document without "College Name"
+def create_word_file(df, fig, filename='Comparison_Report.docx'):
+    doc = Document()
+    doc.add_heading('Comparison Report', level=1)
+    doc.add_paragraph('Comparison of Opening and Closing Ranks:')
 
-    rankings = {website: None for website in target_websites}
+    # Drop "College Name" before adding table to the Word document
+    df = df.drop(columns=['College Name'], errors='ignore')
+    
+    # Add the DataFrame as a table in the Word document
+    t = doc.add_table(df.shape[0]+1, df.shape[1])
+    for j, column in enumerate(df.columns):
+        t.cell(0, j).text = column
+        for i, val in enumerate(df[column].values):
+            t.cell(i+1, j).text = str(val)
 
-    if "organic_results" in results:
-        for index, result in enumerate(results["organic_results"], 1):
-            link = result["link"]
-            base_link = get_base_domain(link)
-            for website in target_websites:
-                base_website = get_base_domain(website)
-                if base_website == base_link and rankings[website] is None:  # Capture first instance only
-                    rankings[website] = index
+    # Add the chart to the Word document
+    doc.add_paragraph('Rank Changes Over Years:')
+    fig_bytes = BytesIO()
+    fig.write_image(fig_bytes, format='png')
+    fig_bytes.seek(0)
+    doc.add_picture(fig_bytes, width=Inches(6))
 
-    return rankings
+    doc.save(filename)
+    return filename
 
-# Function to calculate pixel rank based on position on SERP
-def calculate_pixel_rank(rank):
-    if rank is None:
-        return None
-    return 100 + (rank - 1) * 60  # Assuming each result occupies 60 pixels
+# Function to create a Plotly chart with watermark
+def create_plotly_chart(df, year1, year2):
+    # Exclude "College Name" from the chart
+    df = df.drop(columns=['College Name'], errors='ignore')
+    
+    fig = px.line(df, x='Course Name', y=[f'Opening Rank_{year1}', f'Opening Rank_{year2}'],
+                  color='Quota', line_dash='Gender', 
+                  hover_name='Course Name', markers=True,
+                  title='Rank Changes Over Years')
+    fig.update_layout(
+        legend_title_text='Quota-Gender',
+        xaxis_title='Course Name',
+        yaxis_title='Rank',
+        annotations=[{
+            'text': 'collegedekho',
+            'xref': 'paper', 'yref': 'paper',
+            'x': 0.5, 'y': 0.5, 'showarrow': False,
+            'font': {'size': 20, 'color': 'gray'},
+            'opacity': 0.5
+        }]
+    )
+    return fig
 
-# Streamlit UI
-st.title("🎯 Mobile Google SERP Crawler and Pixel Rank Calculator (SerpAPI)")
-st.markdown("""
-<style>
-    .reportview-container {
-        background: #f0f0f0;
-        color: #333333;
-    }
-    .sidebar .sidebar-content {
-        background: #f7f7f7;
-    }
-</style>
-""", unsafe_allow_html=True)
+# Main Streamlit application starts here
+st.title('College Rank Comparison Tool')
 
-# Step 1: API Key (entered directly in the code for local use)
-api_key = st.text_input("Enter your SerpAPI Key", type="password")
+# Input for years and file uploads
+year1 = st.text_input("Enter year for the first file:")
+year2 = st.text_input("Enter year for the second file:")
+file1 = st.file_uploader(f"Upload the Excel file for {year1}", type=["xlsx"], key="file1")
+file2 = st.file_uploader(f"Upload the Excel file for {year2}", type=["xlsx"], key="file2")
 
-# Step 2: File Upload
-uploaded_file = st.file_uploader("Upload a CSV file with keywords", type=["csv"])
+if file1 and file2 and year1 and year2:
+    df1 = pd.read_excel(file1)
+    df2 = pd.read_excel(file2)
 
-# Step 3: Input Competitors and Primary Website
-competitors = st.text_input("Enter Competitor Websites (comma-separated)", placeholder="e.g., collegedekho.com, collegedunia.com, shiksha.com")
-primary_website = st.text_input("Enter Primary Website", placeholder="e.g., yourwebsite.com")
+    df1 = preprocess_dataframe(df1)
+    df2 = preprocess_dataframe(df2)
 
-if api_key and uploaded_file and competitors and primary_website:
-    keywords_df = pd.read_csv(uploaded_file)
+    college_names = pd.concat([df1['College Name'], df2['College Name']]).unique()
+    selected_college = st.selectbox('Select a College', college_names)
 
-    if 'Keyword' not in keywords_df.columns:
-        st.error("CSV file must contain 'Keyword' column")
-    else:
-        competitors_list = [primary_website] + [website.strip() for website in competitors.split(',')]
+    if selected_college:
+        course_names = pd.concat([df1[df1['College Name'] == selected_college]['Course Name'], df2[df2['College Name'] == selected_college]['Course Name']]).unique()
+        selected_course = st.selectbox('Select a Course (optional)', ['Any'] + list(course_names))
 
-        # Initialize empty list to store results
-        serp_data = []
+        if selected_course and selected_course != 'Any':
+            df1 = df1[(df1['College Name'] == selected_college) & (df1['Course Name'] == selected_course)]
+            df2 = df2[(df2['College Name'] == selected_college) & (df2['Course Name'] == selected_course)]
+        else:
+            df1 = df1[df1['College Name'] == selected_college]
+            df2 = df2[df2['College Name'] == selected_college]
 
-        st.markdown("### 📊 Fetching Rankings...")
-        
-        for keyword in keywords_df['Keyword']:
-            st.info(f"Fetching rankings for: **{keyword}**")
-            rankings = get_serp_rank_serpapi(keyword, competitors_list, api_key)
-            
-            # Calculate pixel rank for primary website
-            pixel_rank = calculate_pixel_rank(rankings[primary_website])
-            
-            # Store the data for each keyword
-            row = [keyword] + [rankings[website] for website in competitors_list] + [pixel_rank]
-            serp_data.append(row)
+        selected_quota = st.selectbox('Select Quota', df1['Quota'].unique())
+        selected_gender = st.selectbox('Select Gender', df1['Gender'].unique())
+        selected_seat_type = st.selectbox('Select Seat Type', df1['Seat Type'].unique())
 
-        # Create a DataFrame to display results
-        columns = ['Keyword'] + [f'Ranking of {website}' for website in competitors_list] + ['Pixel Rank (Primary Website)']
-        result_df = pd.DataFrame(serp_data, columns=columns)
+        filtered_df = df1[(df1['Quota'] == selected_quota) & (df1['Gender'] == selected_gender) & (df1['Seat Type'] == selected_seat_type)]
 
-        # Apply styling to the table
-        def style_ranking(val):
-            color = 'green' if pd.notnull(val) and val <= 10 else 'red'
-            return f'color: {color}'
-        
-        st.markdown("### 🎯 SERP Rankings and Pixel Rank")
-        styled_df = result_df.style.applymap(style_ranking, subset=[f'Ranking of {website}' for website in competitors_list])
-        st.dataframe(styled_df)
+        merged_df = merge_dataframes(filtered_df, df2, ['College Name', 'Course Name', 'Quota', 'Seat Type', 'Gender'], year1, year2)
 
-        # Option to download results
-        csv = result_df.to_csv(index=False)
-        st.download_button(label="📥 Download Results as CSV", data=csv, mime="text/csv")
+        if not merged_df.empty:
+            # Exclude "College Name" from the displayed table
+            st.write("Comparison of Opening and Closing Ranks for Selected Filters:")
+            st.table(merged_df.drop(columns=['College Name'], errors='ignore'))
+
+            fig = create_plotly_chart(merged_df, year1, year2)
+            st.plotly_chart(fig)
+
+            doc_filename = create_word_file(merged_df, fig)
+            with open(doc_filename, "rb") as file:
+                st.download_button(
+                    label="Download Report as Word Document",
+                    data=file,
+                    file_name=doc_filename,
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+        else:
+            st.write("No matching data found for the selected filters.")
