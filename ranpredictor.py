@@ -97,11 +97,16 @@ def classify_colleges(df, user_rank, quota, seat_type):
 # Function to download result in Excel
 def create_download_link(df, filename="prediction_results.xlsx"):
     output = BytesIO()
-    writer = pd.ExcelWriter(output, engine='xlsxwriter')
-    df.to_excel(writer, index=False, sheet_name='Results')
-    writer.save()
+    
+    # Use ExcelWriter to write the DataFrame to an Excel file in memory
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Results')
+        writer.close()  # Correct way to close the writer in newer versions of pandas
+    
+    # Move the pointer to the beginning of the stream
     output.seek(0)
     
+    # Create the download button
     st.download_button(
         label="Download Results as Excel",
         data=output,
