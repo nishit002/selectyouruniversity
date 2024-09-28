@@ -1,13 +1,11 @@
 import streamlit as st
 import pandas as pd
-import pkg_resources
+from pathlib import Path
 
 # Function to load and process the Excel data from the repository
 @st.cache
 def load_data(file_path):
-    # Use pkg_resources to load the file from the package
-    stream = pkg_resources.resource_stream(__name__, file_path)
-    df = pd.read_excel(stream)
+    df = pd.read_excel(file_path)
     df = preprocess_dataframe(df)
     return df
 
@@ -37,9 +35,9 @@ def classify_colleges(df, user_rank, quota, seat_type):
 def main():
     st.title('College Predictor')
 
-    # Load data from the repository using pkg_resources
-    file_2023 = 'selectyouruniversity/JOSSA 2023.xlsx'  # Path to the 2023 file
-    file_2024 = 'selectyouruniversity/JosAA file final 2024.xlsx'  # Path to the 2024 file
+    # Get file paths
+    file_2023 = Path(__file__).parent / 'JOSSA 2023.xlsx'
+    file_2024 = Path(__file__).parent / 'JosAA file final 2024.xlsx'
 
     # Select the file based on user preference
     file_path = st.selectbox('Select the data file to use:', ['JOSSA 2023', 'JosAA file final 2024'])
