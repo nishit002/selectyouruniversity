@@ -43,6 +43,15 @@ def calculate_chances(user_rank, opening_rank, closing_rank):
         # Calculate chance as a percentage between the opening and closing ranks
         return int(100 * (closing_rank - user_rank) / (closing_rank - opening_rank))
 
+# Function to filter courses based on user selection
+def filter_courses(df, course_type):
+    if course_type == "B.Plan (Planning-related)":
+        return df[df['Course Name'].str.contains('planning', case=False, na=False)]
+    elif course_type == "B.Arch (Architecture-related)":
+        return df[df['Course Name'].str.contains('architecture|design', case=False, na=False)]
+    else:  # B.Tech for all other courses
+        return df[~df['Course Name'].str.contains('planning|architecture|design', case=False, na=False)]
+
 # Algorithm to classify colleges into 'Ambitious', 'Moderate', and 'Safe'
 def classify_colleges(df, user_rank, quota, seat_type):
     # Ensure all columns are numeric for comparison
@@ -83,13 +92,22 @@ def main():
 
     df = load_data(file_path)
 
-    # User inputs for quota and seat type
+    # User inputs for quota, seat type, and course type
     quota = st.selectbox('Select your Quota:', df['Quota'].unique())
     seat_type = st.selectbox('Select your Seat Type:', df['Seat Type'].unique())
+    course_type = st.selectbox('Select Course Type:', ['B.Plan (Planning-related)', 'B.Arch (Architecture-related)', 'B.Tech (Engineering-related)'])
+
+    # Filter courses based on user selection
+    df = filter_courses(df, course_type)
 
     # Predict button
     if st.button('Predict Colleges'):
         ambitious, moderate, safe = classify_colleges(df, user_rank, quota, seat_type)
+
+        # Order by Opening Rank (lower cutoff is better)
+        ambitious = ambitious.sort_values(by='Opening Rank')
+        moderate = moderate.sort_values(by='Opening Rank')
+        safe = safe.sort_values(by='Opening Rank')
 
         # Display results for Safe, Moderate, and Ambitious categories
         st.write("### Safe Colleges")
