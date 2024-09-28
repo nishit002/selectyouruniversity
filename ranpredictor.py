@@ -76,8 +76,41 @@ def classify_colleges(df, user_rank, quota, seat_type):
     
     return ambitious, moderate, safe
 
+# Function to apply custom styles
+def add_custom_styles():
+    st.markdown(
+        """
+        <style>
+        /* Custom CSS for background, buttons, and headers */
+        .stButton button {
+            background-color: #E91E63;  /* Pink color */
+            color: white;
+        }
+        .stButton button:hover {
+            background-color: #c2185b;  /* Darker pink on hover */
+        }
+        .stApp {
+            background-color: #f5f5f5;  /* Light gray background */
+        }
+        h1, h2, h3, h4 {
+            color: #283593;  /* Navy blue */
+        }
+        .css-1q8dd3e {
+            color: #283593; /* Override for subheaders */
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
 # Main Streamlit app
 def main():
+    add_custom_styles()  # Add custom styles
+
+    # Display the logo at the top of the app
+    st.image("https://drive.google.com/uc?id=1o_vaTJmpGw-5H_j0mmUAJ6GQdB9UBeNv", width=200)
+  # Local file logo
+
     st.title('College Predictor')
 
     # User inputs
