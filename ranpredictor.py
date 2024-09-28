@@ -28,7 +28,7 @@ def preprocess_dataframe(df):
         'Closing Rank': 'Closing Rank'
     }, inplace=True)
     
-    # Remove rows where Opening or Closing Rank is NaN
+    # Remove rows where Opening or Closing Rank is NaN (so no errors occur during comparison)
     df = df.dropna(subset=['Opening Rank', 'Closing Rank'])
     
     return df
@@ -45,9 +45,20 @@ def calculate_chances(user_rank, opening_rank, closing_rank):
 
 # Algorithm to classify colleges into 'Ambitious', 'Moderate', and 'Safe'
 def classify_colleges(df, user_rank, quota, seat_type):
+    # Ensure all columns are numeric for comparison
+    df['Opening Rank'] = pd.to_numeric(df['Opening Rank'], errors='coerce')
+    df['Closing Rank'] = pd.to_numeric(df['Closing Rank'], errors='coerce')
+    
     # Create a copy of the DataFrame to add the "Chance" column
     df = df.copy()
-    df['Chance'] = df.apply(lambda row: calculate_chances(user_rank, row['Opening Rank'], row['Closing Rank']), axis=1)
+    
+    # Calculate chances only for valid numeric values
+    df['Chance'] = df.apply(
+        lambda row: calculate_chances(user_rank, row['Opening Rank'], row['Closing Rank']) 
+        if pd.notnull(row['Opening Rank']) and pd.notnull(row['Closing Rank']) 
+        else 0, 
+        axis=1
+    )
     
     # Filter DataFrame according to user rank, quota, and seat type
     ambitious = df[(df['Closing Rank'] < user_rank) & (df['Quota'] == quota) & (df['Seat Type'] == seat_type)]
