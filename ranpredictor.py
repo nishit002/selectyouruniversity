@@ -138,7 +138,7 @@ def main():
                     st.warning("Please fill out all fields.")
                 else:
                     st.session_state.lead_submitted = True
-                    st.success(f"Thanks {name}, your details have been submitted!")
+                    st.success(f"Thanks {name}, your details have been submitted! Enter Your JEE Main Rank Below")
     
     # Show the rank field and predictions only if the lead form has been submitted
     if st.session_state.lead_submitted:
