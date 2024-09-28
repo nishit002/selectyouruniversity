@@ -116,8 +116,8 @@ def add_custom_styles():
 def main():
     add_custom_styles()  # Add custom styles
 
-    # Display the logo at the top of the app (using a direct Google Drive image URL)
-    st.image("https://imgur.com/pctn0tc", width=200)  # Google Drive URL for logo
+    # Display the logo at the top of the app (using the correct Imgur direct image URL)
+    st.image("https://i.imgur.com/pctn0tc.png", width=200)  # Correct Imgur URL
 
     st.title('College Predictor')
 
