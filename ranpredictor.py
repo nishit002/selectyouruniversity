@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 
-# Function to load and process the Excel data from the repository
+# Function to load and process the Excel data
 @st.cache
 def load_data(file_path):
     df = pd.read_excel(file_path)
@@ -27,34 +27,52 @@ def preprocess_dataframe(df):
         'Opening Rank': 'Opening Rank',
         'Closing Rank': 'Closing Rank'
     }, inplace=True)
+    
+    # Remove rows where Opening or Closing Rank is NaN
+    df = df.dropna(subset=['Opening Rank', 'Closing Rank'])
+    
     return df
+
+# Function to calculate the chances of admission
+def calculate_chances(user_rank, opening_rank, closing_rank):
+    if user_rank <= opening_rank:
+        return 100  # 100% chance if the rank is better than the opening rank
+    elif user_rank > closing_rank:
+        return 0  # 0% chance if the rank is worse than the closing rank
+    else:
+        # Calculate chance as a percentage between the opening and closing ranks
+        return int(100 * (closing_rank - user_rank) / (closing_rank - opening_rank))
 
 # Algorithm to classify colleges into 'Ambitious', 'Moderate', and 'Safe'
 def classify_colleges(df, user_rank, quota, seat_type):
-    # Ensure user_rank is numeric and filter DataFrame accordingly
+    # Create a copy of the DataFrame to add the "Chance" column
+    df = df.copy()
+    df['Chance'] = df.apply(lambda row: calculate_chances(user_rank, row['Opening Rank'], row['Closing Rank']), axis=1)
+    
+    # Filter DataFrame according to user rank, quota, and seat type
     ambitious = df[(df['Closing Rank'] < user_rank) & (df['Quota'] == quota) & (df['Seat Type'] == seat_type)]
     moderate = df[(df['Opening Rank'] <= user_rank) & (df['Closing Rank'] >= user_rank) & (df['Quota'] == quota) & (df['Seat Type'] == seat_type)]
     safe = df[(df['Opening Rank'] > user_rank) & (df['Quota'] == quota) & (df['Seat Type'] == seat_type)]
+    
     return ambitious, moderate, safe
 
 # Main Streamlit app
 def main():
     st.title('College Predictor')
 
-    # Get file paths
-    file_2023 = Path(__file__).parent / 'JOSSA 2023.xlsx'
-    file_2024 = Path(__file__).parent / 'JosAA file final 2024.xlsx'
-
-    # Select the file based on user preference
-    file_path = st.selectbox('Select the data file to use:', ['JOSSA 2023', 'JosAA file final 2024'])
-
-    if file_path == 'JOSSA 2023':
-        df = load_data(file_2023)
-    else:
-        df = load_data(file_2024)
-
     # User inputs
+    year = st.selectbox('Select Year:', [2023, 2024])
     user_rank = st.number_input('Enter your Rank:', min_value=0, step=1)
+
+    # Load the correct data file based on the selected year
+    if year == 2023:
+        file_path = Path(__file__).parent / 'JOSSA 2023.xlsx'
+    else:
+        file_path = Path(__file__).parent / 'JosAA file final 2024.xlsx'
+
+    df = load_data(file_path)
+
+    # User inputs for quota and seat type
     quota = st.selectbox('Select your Quota:', df['Quota'].unique())
     seat_type = st.selectbox('Select your Seat Type:', df['Seat Type'].unique())
 
@@ -62,15 +80,27 @@ def main():
     if st.button('Predict Colleges'):
         ambitious, moderate, safe = classify_colleges(df, user_rank, quota, seat_type)
 
-        # Display results
-        st.write("### Ambitious Colleges")
-        st.dataframe(ambitious[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank']])
+        # Display results for Safe, Moderate, and Ambitious categories
+        st.write("### Safe Colleges")
+        if not safe.empty:
+            safe['Chance (%)'] = safe['Chance']
+            st.dataframe(safe[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)']])
+        else:
+            st.write("No Safe Colleges found based on your rank.")
 
         st.write("### Moderate Colleges")
-        st.dataframe(moderate[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank']])
+        if not moderate.empty:
+            moderate['Chance (%)'] = moderate['Chance']
+            st.dataframe(moderate[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)']])
+        else:
+            st.write("No Moderate Colleges found based on your rank.")
 
-        st.write("### Safe Colleges")
-        st.dataframe(safe[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank']])
+        st.write("### Ambitious Colleges")
+        if not ambitious.empty:
+            ambitious['Chance (%)'] = ambitious['Chance']
+            st.dataframe(ambitious[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)']])
+        else:
+            st.write("No Ambitious Colleges found based on your rank.")
 
 if __name__ == '__main__':
     main()
