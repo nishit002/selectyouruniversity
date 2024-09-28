@@ -184,7 +184,6 @@ def main():
                 st.write("### Moderate Colleges")
                 if not moderate.empty:
                     moderate['Chance (%)'] = moderate['Chance']
-                    moderate['Deviation from Last
                     moderate['Deviation from Last Year Cutoff'] = moderate['Deviation']
                     st.dataframe(moderate[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)', 'Deviation from Last Year Cutoff']])
                 else:
