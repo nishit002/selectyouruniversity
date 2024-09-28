@@ -117,6 +117,21 @@ def show_user_type_form():
 
     return None
 
+# Function to download result in Excel
+def create_download_link(df, filename="prediction_results.xlsx"):
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='xlsxwriter')
+    df.to_excel(writer, index=False, sheet_name='Results')
+    writer.save()
+    output.seek(0)
+    
+    st.download_button(
+        label="Download Results as Excel",
+        data=output,
+        file_name=filename,
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
 # Main Streamlit app
 def main():
     st.image("https://i.imgur.com/pctn0tc.png", width=200)  # Correct Imgur URL for the logo
@@ -148,6 +163,13 @@ def main():
             if user_info.get("type") == "Counsellor" and user_info.get("password") != "syu123":
                 st.error("Incorrect password for counsellor!")
             else:
+                # Capture lead information here if needed
+                st.write("### Lead Information Captured:")
+                st.write(user_info)  # For now, just show the captured lead
+
+                # Once the lead is captured, hide the form
+                st.write("### Prediction Results:")
+
                 ambitious, moderate, safe = classify_colleges(df, user_rank, quota, seat_type)
 
                 # Display results for Safe, Moderate, and Ambitious categories
@@ -162,6 +184,7 @@ def main():
                 st.write("### Moderate Colleges")
                 if not moderate.empty:
                     moderate['Chance (%)'] = moderate['Chance']
+                    moderate['Deviation from Last
                     moderate['Deviation from Last Year Cutoff'] = moderate['Deviation']
                     st.dataframe(moderate[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)', 'Deviation from Last Year Cutoff']])
                 else:
@@ -174,6 +197,16 @@ def main():
                     st.dataframe(ambitious[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)', 'Deviation from Last Year Cutoff']])
                 else:
                     st.write("No Ambitious Colleges found based on your rank.")
+
+                # Combine results for download
+                result_df = pd.concat([
+                    safe.assign(Category='Safe'),
+                    moderate.assign(Category='Moderate'),
+                    ambitious.assign(Category='Ambitious')
+                ])
+
+                # Provide download button for the Excel file
+                create_download_link(result_df)
 
 if __name__ == '__main__':
     main()
