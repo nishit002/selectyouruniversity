@@ -1,0 +1,10 @@
+streamlit
+pandas
+plotly
+python-docx
+openpyxl
+kaleido
+openpyxl
+beautifulsoup4
+requests
+googlesearch-python
