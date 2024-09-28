@@ -130,96 +130,47 @@ def main():
     # Filter courses based on user selection
     df = filter_courses(df, course_type)
 
-    # Flag to track if the form has been submitted and is valid
-    form_submitted = False
-    valid_password = True
-
-    # Function to display the user information form (Student or Counsellor)
-    def show_user_type_form():
-        nonlocal form_submitted
-        nonlocal valid_password
-
-        # Ask whether the user is a Student or Counsellor
-        user_type = st.radio("Are you a Student or a Counsellor?", ["Student", "Counsellor"], index=0)
-
-        # If Student, ask for the required lead information
-        if user_type == "Student":
-            name = st.text_input("Name")
-            email = st.text_input("Email")
-            phone = st.text_input("Phone Number")
-            city = st.text_input("Current City")
-            gender = st.selectbox("Gender", ["Male", "Female", "Other"])
-
-            # Ensure that all fields are filled before proceeding
-            if st.button('Submit Information'):
-                if not name or not email or not phone or not city:
-                    st.warning("Please fill out all fields.")
-                else:
-                    form_submitted = True
-                    return {"type": user_type, "name": name, "email": email, "phone": phone, "city": city, "gender": gender}
-        
-        # If Counsellor, ask for a password
-        elif user_type == "Counsellor":
-            password = st.text_input("Enter Password", type="password")
-            
-            if st.button('Submit Information'):
-                if password != "syu123":
-                    st.warning("Incorrect password. Please enter 'syu123'.")
-                    valid_password = False  # Mark password as invalid
-                else:
-                    form_submitted = True
-                    valid_password = True  # Password is valid
-                    return {"type": user_type, "password": password}
-        
-        return None
-
     # Predict button
     if st.button('Predict Colleges'):
-        # Show the user type form
-        user_info = show_user_type_form()
+        st.write("### Prediction Results:")
 
-        # Only proceed to predictions if the form is submitted and valid
-        if form_submitted and (valid_password or user_info["type"] == "Student"):
-            st.write("### Prediction Results:")
+        # Classify colleges based on user inputs
+        ambitious, moderate, safe = classify_colleges(df, user_rank, quota, seat_type)
 
-            # Classify colleges based on user inputs
-            ambitious, moderate, safe = classify_colleges(df, user_rank, quota, seat_type)
+        # Display results for Safe, Moderate, and Ambitious categories
+        st.write("### Safe Colleges")
+        if not safe.empty:
+            safe['Chance (%)'] = safe['Chance']
+            safe['Deviation from Last Year Cutoff'] = safe['Deviation']
+            st.dataframe(safe[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)', 'Deviation from Last Year Cutoff']])
+        else:
+            st.write("No Safe Colleges found based on your rank.")
 
-            # Display results for Safe, Moderate, and Ambitious categories
-            st.write("### Safe Colleges")
-            if not safe.empty:
-                safe['Chance (%)'] = safe['Chance']
-                safe['Deviation from Last Year Cutoff'] = safe['Deviation']
-                st.dataframe(safe[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)', 'Deviation from Last Year Cutoff']])
-            else:
-                                st.write("No Safe Colleges found based on your rank.")
+        st.write("### Moderate Colleges")
+        if not moderate.empty:
+            moderate['Chance (%)'] = moderate['Chance']
+            moderate['Deviation from Last Year Cutoff'] = moderate['Deviation']
+            st.dataframe(moderate[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)', 'Deviation from Last Year Cutoff']])
+        else:
+            st.write("No Moderate Colleges found based on your rank.")
 
-            st.write("### Moderate Colleges")
-            if not moderate.empty:
-                moderate['Chance (%)'] = moderate['Chance']
-                moderate['Deviation from Last Year Cutoff'] = moderate['Deviation']
-                st.dataframe(moderate[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)', 'Deviation from Last Year Cutoff']])
-            else:
-                st.write("No Moderate Colleges found based on your rank.")
+        st.write("### Ambitious Colleges")
+        if not ambitious.empty:
+            ambitious['Chance (%)'] = ambitious['Chance']
+            ambitious['Deviation from Last Year Cutoff'] = ambitious['Deviation']
+            st.dataframe(ambitious[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)', 'Deviation from Last Year Cutoff']])
+        else:
+            st.write("No Ambitious Colleges found based on your rank.")
 
-            st.write("### Ambitious Colleges")
-            if not ambitious.empty:
-                ambitious['Chance (%)'] = ambitious['Chance']
-                ambitious['Deviation from Last Year Cutoff'] = ambitious['Deviation']
-                st.dataframe(ambitious[['College Name', 'Course Name', 'Opening Rank', 'Closing Rank', 'Chance (%)', 'Deviation from Last Year Cutoff']])
-            else:
-                st.write("No Ambitious Colleges found based on your rank.")
+        # Combine results into a DataFrame for downloading
+        result_df = pd.concat([
+            safe.assign(Category='Safe'),
+            moderate.assign(Category='Moderate'),
+            ambitious.assign(Category='Ambitious')
+        ])
 
-            # Combine results into a DataFrame for downloading
-            result_df = pd.concat([
-                safe.assign(Category='Safe'),
-                moderate.assign(Category='Moderate'),
-                ambitious.assign(Category='Ambitious')
-            ])
-
-            # Provide download button for the Excel file
-            create_download_link(result_df)
+        # Provide download button for the Excel file
+        create_download_link(result_df)
 
 if __name__ == '__main__':
     main()
-
