@@ -130,12 +130,14 @@ def main():
     # Filter courses based on user selection
     df = filter_courses(df, course_type)
 
-    # Flag to track if the form has been submitted
+    # Flag to track if the form has been submitted and is valid
     form_submitted = False
+    valid_password = True
 
     # Function to display the user information form (Student or Counsellor)
     def show_user_type_form():
         nonlocal form_submitted
+        nonlocal valid_password
 
         # Ask whether the user is a Student or Counsellor
         user_type = st.radio("Are you a Student or a Counsellor?", ["Student", "Counsellor"], index=0)
@@ -163,8 +165,10 @@ def main():
             if st.button('Submit Information'):
                 if password != "syu123":
                     st.warning("Incorrect password. Please enter 'syu123'.")
+                    valid_password = False  # Mark password as invalid
                 else:
                     form_submitted = True
+                    valid_password = True  # Password is valid
                     return {"type": user_type, "password": password}
         
         return None
@@ -174,8 +178,8 @@ def main():
         # Show the user type form
         user_info = show_user_type_form()
 
-        # If form is successfully submitted, proceed to show predictions
-        if form_submitted:
+        # Only proceed to predictions if the form is submitted and valid
+        if form_submitted and (valid_password or user_info["type"] == "Student"):
             st.write("### Prediction Results:")
 
             # Classify colleges based on user inputs
